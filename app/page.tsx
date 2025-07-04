@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Search, Settings, Plus, Edit, Trash2, Save, X } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Search, Settings, Plus, Edit, Trash2, Save, X, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,89 +10,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-
-interface Issue {
-  id: string
-  title: string
-  category: string
-  steps: string[]
-  additionalInfo?: string
-}
-
-const initialIssues: Issue[] = [
-  {
-    id: "1",
-    title: "Printer Won't Turn On",
-    category: "Power",
-    steps: [
-      "Check if the power cord is properly connected to both the printer and power outlet",
-      "Verify the power outlet is working by testing with another device",
-      "Press and hold the power button for 3-5 seconds",
-      "Check if the power LED indicator lights up",
-      "If still not working, try a different power cord if available",
-    ],
-    additionalInfo:
-      "If the printer still won't turn on after these steps, the internal power supply may be faulty and require professional service.",
-  },
-  {
-    id: "2",
-    title: "Paper Jam Error",
-    category: "Paper Handling",
-    steps: [
-      "Turn off the printer and unplug it from power",
-      "Open all printer covers and trays",
-      "Gently remove any visible paper, pulling in the direction of paper path",
-      "Check for small torn pieces of paper",
-      "Close all covers and trays",
-      "Plug in and turn on the printer",
-      "Run a test print",
-    ],
-    additionalInfo:
-      "Always pull paper in the direction it normally travels. Pulling against the paper path can damage the printer mechanism.",
-  },
-  {
-    id: "3",
-    title: "Poor Print Quality",
-    category: "Print Quality",
-    steps: [
-      "Check ink or toner levels in printer software",
-      "Run the printer's built-in cleaning cycle",
-      "Check print settings - ensure correct paper type is selected",
-      "Inspect paper for damage or moisture",
-      "Clean the printer heads using the maintenance menu",
-      "Replace ink cartridges if levels are low",
-      "Perform a printer alignment if available",
-    ],
-    additionalInfo:
-      "Print quality issues can also be caused by using non-genuine ink cartridges or expired cartridges. Always use HP-certified supplies for best results.",
-  },
-  {
-    id: "4",
-    title: "Printer Not Detected by Computer",
-    category: "Connectivity",
-    steps: [
-      "Check USB or network cable connections",
-      "Restart both printer and computer",
-      "Update or reinstall printer drivers",
-      "For wireless: Check WiFi connection and password",
-      "Run Windows printer troubleshooter",
-      "Add printer manually through Control Panel",
-      "Check firewall settings if using network printer",
-    ],
-    additionalInfo:
-      "For wireless printers, ensure the printer and computer are on the same network. Some routers have guest networks that may prevent device communication.",
-  },
-]
+import { supabase, type Issue } from "@/lib/supabase"
 
 export default function TroubleshootingApp() {
-  const [issues, setIssues] = useState<Issue[]>(initialIssues)
-  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(issues[0])
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [isAdminMode, setIsAdminMode] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [password, setPassword] = useState("")
   const [editingIssue, setEditingIssue] = useState<Issue | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     category: "",
@@ -107,6 +37,48 @@ export default function TroubleshootingApp() {
       issue.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       issue.category.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  // Load issues from Supabase
+  const loadIssues = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from("troubleshooting_issues")
+        .select("*")
+        .order("created_at", { ascending: true })
+
+      if (error) {
+        console.error("Error loading issues:", error)
+        alert("Error loading troubleshooting issues. Please refresh the page.")
+        return
+      }
+
+      const formattedIssues: Issue[] = data.map((item) => ({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        steps: item.steps,
+        additional_info: item.additional_info,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+      }))
+
+      setIssues(formattedIssues)
+      if (formattedIssues.length > 0 && !selectedIssue) {
+        setSelectedIssue(formattedIssues[0])
+      }
+    } catch (error) {
+      console.error("Error loading issues:", error)
+      alert("Error loading troubleshooting issues. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Load issues on component mount
+  useEffect(() => {
+    loadIssues()
+  }, [])
 
   const handleAdminToggle = () => {
     if (isAdminMode) {
@@ -128,43 +100,63 @@ export default function TroubleshootingApp() {
     }
   }
 
-  const handleSaveIssue = () => {
+  const handleSaveIssue = async () => {
     if (!formData.title || !formData.category || !formData.steps) {
       alert("Please fill in all required fields")
       return
     }
 
     const stepsArray = formData.steps.split("\n").filter((step) => step.trim() !== "")
+    setSaving(true)
 
-    if (editingIssue) {
-      // Update existing issue
-      const updatedIssues = issues.map((issue) =>
-        issue.id === editingIssue.id
-          ? {
-              ...issue,
-              title: formData.title,
-              category: formData.category,
-              steps: stepsArray,
-              additionalInfo: formData.additionalInfo || undefined,
-            }
-          : issue,
-      )
-      setIssues(updatedIssues)
-      setEditingIssue(null)
-    } else {
-      // Add new issue
-      const newIssue: Issue = {
-        id: Date.now().toString(),
-        title: formData.title,
-        category: formData.category,
-        steps: stepsArray,
-        additionalInfo: formData.additionalInfo || undefined,
+    try {
+      if (editingIssue) {
+        // Update existing issue
+        const { error } = await supabase
+          .from("troubleshooting_issues")
+          .update({
+            title: formData.title,
+            category: formData.category,
+            steps: stepsArray,
+            additional_info: formData.additionalInfo || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingIssue.id)
+
+        if (error) {
+          console.error("Error updating issue:", error)
+          alert("Error updating issue. Please try again.")
+          return
+        }
+
+        setEditingIssue(null)
+      } else {
+        // Add new issue
+        const { error } = await supabase.from("troubleshooting_issues").insert({
+          title: formData.title,
+          category: formData.category,
+          steps: stepsArray,
+          additional_info: formData.additionalInfo || null,
+        })
+
+        if (error) {
+          console.error("Error adding issue:", error)
+          alert("Error adding issue. Please try again.")
+          return
+        }
+
+        setShowAddForm(false)
       }
-      setIssues([...issues, newIssue])
-      setShowAddForm(false)
-    }
 
-    setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
+      // Reload issues to get the latest data
+      await loadIssues()
+      setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
+    } catch (error) {
+      console.error("Error saving issue:", error)
+      alert("Error saving issue. Please try again.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleEditIssue = (issue: Issue) => {
@@ -173,18 +165,36 @@ export default function TroubleshootingApp() {
       title: issue.title,
       category: issue.category,
       steps: issue.steps.join("\n"),
-      additionalInfo: issue.additionalInfo || "",
+      additionalInfo: issue.additional_info || "",
     })
     setShowAddForm(false)
   }
 
-  const handleDeleteIssue = (issueId: string) => {
-    if (confirm("Are you sure you want to delete this issue?")) {
-      const updatedIssues = issues.filter((issue) => issue.id !== issueId)
-      setIssues(updatedIssues)
-      if (selectedIssue?.id === issueId) {
-        setSelectedIssue(updatedIssues[0] || null)
+  const handleDeleteIssue = async (issueId: string) => {
+    if (!confirm("Are you sure you want to delete this issue?")) {
+      return
+    }
+
+    try {
+      const { error } = await supabase.from("troubleshooting_issues").delete().eq("id", issueId)
+
+      if (error) {
+        console.error("Error deleting issue:", error)
+        alert("Error deleting issue. Please try again.")
+        return
       }
+
+      // Reload issues
+      await loadIssues()
+
+      // Update selected issue if it was deleted
+      if (selectedIssue?.id === issueId) {
+        const remainingIssues = issues.filter((issue) => issue.id !== issueId)
+        setSelectedIssue(remainingIssues[0] || null)
+      }
+    } catch (error) {
+      console.error("Error deleting issue:", error)
+      alert("Error deleting issue. Please try again.")
     }
   }
 
@@ -200,6 +210,17 @@ export default function TroubleshootingApp() {
     setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
   }
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading troubleshooting guide...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -209,14 +230,25 @@ export default function TroubleshootingApp() {
             <h1 className="text-2xl font-bold text-gray-900">HP Troubleshooting Guide</h1>
             <p className="text-sm text-gray-600">GOPAK Technical Support</p>
           </div>
-          <Button
-            variant={isAdminMode ? "default" : "outline"}
-            onClick={handleAdminToggle}
-            className="flex items-center gap-2"
-          >
-            <Settings className="h-4 w-4" />
-            {isAdminMode ? "Exit Admin" : "Admin Mode"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={loadIssues}
+              className="flex items-center gap-2 bg-transparent"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button
+              variant={isAdminMode ? "default" : "outline"}
+              onClick={handleAdminToggle}
+              className="flex items-center gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              {isAdminMode ? "Exit Admin" : "Admin Mode"}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -353,11 +385,11 @@ export default function TroubleshootingApp() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={handleSaveIssue} className="flex items-center gap-2">
+                  <Button onClick={handleSaveIssue} className="flex items-center gap-2" disabled={saving}>
                     <Save className="h-4 w-4" />
-                    Save Issue
+                    {saving ? "Saving..." : "Save Issue"}
                   </Button>
-                  <Button variant="outline" onClick={cancelEdit}>
+                  <Button variant="outline" onClick={cancelEdit} disabled={saving}>
                     Cancel
                   </Button>
                 </div>
@@ -388,11 +420,11 @@ export default function TroubleshootingApp() {
                 </div>
               </div>
 
-              {selectedIssue.additionalInfo && (
+              {selectedIssue.additional_info && (
                 <div className="mt-8">
                   <h3 className="text-lg font-medium mb-4 text-gray-900">Additional Information</h3>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-gray-700 leading-relaxed">{selectedIssue.additionalInfo}</p>
+                    <p className="text-gray-700 leading-relaxed">{selectedIssue.additional_info}</p>
                   </div>
                 </div>
               )}
