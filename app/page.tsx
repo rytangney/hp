@@ -12,6 +12,37 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { supabase, type Issue } from "@/lib/supabase"
 
+// Function to calculate daily HP CE Code
+function calculateHPCECode(): string {
+  const startDate = new Date("2024-03-26")
+  const today = new Date()
+
+  // Calculate days since start date
+  const timeDiff = today.getTime() - startDate.getTime()
+  const daysSinceStart = Math.floor(timeDiff / (1000 * 3600 * 24))
+
+  // 10-day cycle increments
+  const cycleIncrements = [173, 173, 173, 173, 172, 173, 173, 173, 172, 173]
+
+  let currentCode = 9452 // Starting code
+
+  // Calculate total increment based on complete cycles and remaining days
+  const completeCycles = Math.floor(daysSinceStart / 10)
+  const remainingDays = daysSinceStart % 10
+
+  // Add increments for complete cycles
+  const cycleSum = cycleIncrements.reduce((sum, increment) => sum + increment, 0)
+  currentCode += completeCycles * cycleSum
+
+  // Add increments for remaining days
+  for (let i = 0; i < remainingDays; i++) {
+    currentCode += cycleIncrements[i]
+  }
+
+  // Return only the last 4 digits
+  return (currentCode % 10000).toString().padStart(4, "0")
+}
+
 export default function TroubleshootingApp() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
@@ -235,9 +266,15 @@ export default function TroubleshootingApp() {
               <div className="h-12 w-px bg-green-500/50"></div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                HP Troubleshooting Guide
-              </h1>
+              <div className="flex items-center gap-4 mb-1">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  HP Troubleshooting Guide
+                </h1>
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                  <div className="text-xs font-medium opacity-90">HP CE CODE</div>
+                  <div className="text-lg font-bold">{calculateHPCECode()}</div>
+                </div>
+              </div>
               <p className="text-green-600 font-medium">GOPAK Technical Support</p>
             </div>
           </div>
