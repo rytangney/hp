@@ -227,25 +227,25 @@ export default function TroubleshootingApp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-gray-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-gray-900 via-black to-gray-900 shadow-2xl border-b-4 border-green-500">
+      <header className="bg-gradient-to-r from-gray-100 via-white to-gray-100 shadow-2xl border-b-4 border-green-500">
         <div className="flex items-center justify-between px-8 py-6">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4">
               <img src="/images/gopak-logo.png" alt="GOPAK Logo" className="h-12 w-auto drop-shadow-lg" />
-              <div className="h-12 w-px bg-green-500/30"></div>
+              <div className="h-12 w-px bg-green-500/50"></div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                 HP Troubleshooting Guide
               </h1>
-              <p className="text-green-400 font-medium">GOPAK Technical Support</p>
+              <p className="text-green-600 font-medium">GOPAK Technical Support</p>
             </div>
           </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={loadIssues}
-              className="flex items-center gap-2 bg-white/10 border-green-500/30 text-white hover:bg-green-500/20 hover:border-green-400 transition-all duration-200"
+              className="flex items-center gap-2 bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400 transition-all duration-200"
               disabled={loading}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -257,7 +257,7 @@ export default function TroubleshootingApp() {
               className={`flex items-center gap-2 transition-all duration-200 ${
                 isAdminMode
                   ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
-                  : "bg-white/10 border-green-500/30 text-white hover:bg-green-500/20 hover:border-green-400"
+                  : "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400"
               }`}
             >
               <Settings className="h-4 w-4" />
@@ -269,7 +269,7 @@ export default function TroubleshootingApp() {
 
       <div className="flex h-[calc(100vh-100px)]">
         {/* Left Panel - Issues List */}
-        <div className="w-1/3 bg-white/80 backdrop-blur-sm border-r border-green-200 flex flex-col shadow-xl">
+        <div className="w-1/3 bg-white/80 backdrop-blur-sm border-r-4 border-green-300 shadow-2xl flex flex-col">
           <div className="p-6 border-b border-green-100 bg-gradient-to-r from-green-50 to-white">
             <div className="relative mb-4">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-600 h-5 w-5" />
