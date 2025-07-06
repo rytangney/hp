@@ -30,7 +30,7 @@ export default function TroubleshootingApp() {
     additionalInfo: "",
   })
 
-  const categories = ["Power", "Paper Handling", "Print Quality", "Connectivity", "Software", "Hardware"]
+  const categories = ["Print Quality", "Error Message", "Mechanical", "Material", "Software", "Other"]
 
   const filteredIssues = issues.filter(
     (issue) =>
