@@ -226,9 +226,12 @@ export default function TroubleshootingApp() {
       {/* Header */}
       <header className="border-b bg-white shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">HP Troubleshooting Guide</h1>
-            <p className="text-sm text-gray-600">GOPAK Technical Support</p>
+          <div className="flex items-center gap-4">
+            <img src="/images/gopak-logo.png" alt="GOPAK Logo" className="h-12 w-auto" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">HP Troubleshooting Guide</h1>
+              <p className="text-sm text-gray-600">GOPAK Technical Support</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button
