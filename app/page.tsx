@@ -258,31 +258,42 @@ export default function TroubleshootingApp() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-gray-50">
       {/* Header */}
-      <header className="bg-gradient-to-r from-gray-100 via-white to-gray-100 shadow-2xl border-b-4 border-green-500">
-        <div className="flex items-center justify-between px-8 py-6">
+      <header className="bg-gradient-to-r from-gray-500 via-gray-600 to-gray-500 shadow-2xl border-b-4 border-green-500 relative overflow-hidden">
+        {/* Textured background overlay */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent"></div>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255,255,255,0.1) 1px, transparent 1px),
+                             radial-gradient(circle at 75% 75%, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+              backgroundSize: "20px 20px",
+            }}
+          ></div>
+        </div>
+
+        <div className="flex items-center justify-between px-8 py-6 relative z-10">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4">
               <img src="/images/gopak-logo.png" alt="GOPAK Logo" className="h-12 w-auto drop-shadow-lg" />
-              <div className="h-12 w-px bg-green-500/50"></div>
+              <div className="h-12 w-px bg-green-400/60"></div>
             </div>
             <div>
               <div className="flex items-center gap-4 mb-1">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                  HP Troubleshooting Guide
-                </h1>
-                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-lg">
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">HP Troubleshooting Guide</h1>
+                <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg shadow-lg border border-green-400/30">
                   <div className="text-xs font-medium opacity-90">HP CE CODE</div>
                   <div className="text-lg font-bold">{calculateHPCECode()}</div>
                 </div>
               </div>
-              <p className="text-green-600 font-medium">GOPAK Technical Support</p>
+              <p className="text-green-300 font-medium drop-shadow-sm">GOPAK Technical Support</p>
             </div>
           </div>
           <div className="flex gap-3">
             <Button
               variant="outline"
               onClick={loadIssues}
-              className="flex items-center gap-2 bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400 transition-all duration-200"
+              className="flex items-center gap-2 bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/40 transition-all duration-200 backdrop-blur-sm"
               disabled={loading}
             >
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -293,8 +304,8 @@ export default function TroubleshootingApp() {
               onClick={handleAdminToggle}
               className={`flex items-center gap-2 transition-all duration-200 ${
                 isAdminMode
-                  ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg"
-                  : "bg-green-50 border-green-300 text-green-700 hover:bg-green-100 hover:border-green-400"
+                  ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg border border-green-400/30"
+                  : "bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/40 backdrop-blur-sm"
               }`}
             >
               <Settings className="h-4 w-4" />
