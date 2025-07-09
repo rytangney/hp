@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Settings, Plus, Edit, Trash2, Save, X, RefreshCw } from "lucide-react"
+import { Search, Settings, Plus, Edit, Trash2, Save, X, RefreshCw, Upload, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { supabase, type Issue } from "@/lib/supabase"
+import { uploadImage, deleteImage } from "@/lib/storage"
 
 // Function to calculate daily HP CE Code
 function calculateHPCECode(): string {
@@ -54,11 +55,13 @@ export default function TroubleshootingApp() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingImages, setUploadingImages] = useState(false)
   const [formData, setFormData] = useState({
     title: "",
     category: "",
     steps: "",
     additionalInfo: "",
+    images: [] as string[],
   })
 
   const categories = ["Print Quality", "Error Message", "Mechanical", "Material", "Software", "Other"]
@@ -90,6 +93,7 @@ export default function TroubleshootingApp() {
         category: item.category,
         steps: item.steps,
         additional_info: item.additional_info,
+        images: item.images || [],
         created_at: item.created_at,
         updated_at: item.updated_at,
       }))
@@ -131,6 +135,61 @@ export default function TroubleshootingApp() {
     }
   }
 
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return
+
+    setUploadingImages(true)
+    const uploadedUrls: string[] = []
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          alert(`File ${file.name} is not an image`)
+          continue
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`File ${file.name} is too large. Maximum size is 5MB`)
+          continue
+        }
+
+        const imageUrl = await uploadImage(file)
+        if (imageUrl) {
+          uploadedUrls.push(imageUrl)
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+        }))
+      }
+    } catch (error) {
+      console.error("Error uploading images:", error)
+      alert("Error uploading images. Please try again.")
+    } finally {
+      setUploadingImages(false)
+    }
+  }
+
+  const handleRemoveImage = async (imageUrl: string) => {
+    try {
+      await deleteImage(imageUrl)
+      setFormData((prev) => ({
+        ...prev,
+        images: prev.images.filter((url) => url !== imageUrl),
+      }))
+    } catch (error) {
+      console.error("Error removing image:", error)
+      alert("Error removing image. Please try again.")
+    }
+  }
+
   const handleSaveIssue = async () => {
     if (!formData.title || !formData.category || !formData.steps) {
       alert("Please fill in all required fields")
@@ -150,6 +209,7 @@ export default function TroubleshootingApp() {
             category: formData.category,
             steps: stepsArray,
             additional_info: formData.additionalInfo || null,
+            images: formData.images,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingIssue.id)
@@ -168,6 +228,7 @@ export default function TroubleshootingApp() {
           category: formData.category,
           steps: stepsArray,
           additional_info: formData.additionalInfo || null,
+          images: formData.images,
         })
 
         if (error) {
@@ -181,7 +242,7 @@ export default function TroubleshootingApp() {
 
       // Reload issues to get the latest data
       await loadIssues()
-      setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
+      setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
     } catch (error) {
       console.error("Error saving issue:", error)
       alert("Error saving issue. Please try again.")
@@ -197,6 +258,7 @@ export default function TroubleshootingApp() {
       category: issue.category,
       steps: issue.steps.join("\n"),
       additionalInfo: issue.additional_info || "",
+      images: issue.images || [],
     })
     setShowAddForm(false)
   }
@@ -207,6 +269,16 @@ export default function TroubleshootingApp() {
     }
 
     try {
+      // Find the issue to get its images
+      const issueToDelete = issues.find((issue) => issue.id === issueId)
+
+      // Delete associated images from storage
+      if (issueToDelete?.images) {
+        for (const imageUrl of issueToDelete.images) {
+          await deleteImage(imageUrl)
+        }
+      }
+
       const { error } = await supabase.from("troubleshooting_issues").delete().eq("id", issueId)
 
       if (error) {
@@ -232,13 +304,13 @@ export default function TroubleshootingApp() {
   const handleAddNew = () => {
     setShowAddForm(true)
     setEditingIssue(null)
-    setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
+    setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
   }
 
   const cancelEdit = () => {
     setEditingIssue(null)
     setShowAddForm(false)
-    setFormData({ title: "", category: "", steps: "", additionalInfo: "" })
+    setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
   }
 
   if (loading) {
@@ -355,6 +427,7 @@ export default function TroubleshootingApp() {
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <h3 className="font-semibold text-gray-900 text-sm leading-tight">{issue.title}</h3>
+                      {issue.images && issue.images.length > 0 && <ImageIcon className="h-3 w-3 text-green-600" />}
                     </div>
                     <Badge
                       variant="secondary"
@@ -460,7 +533,7 @@ export default function TroubleshootingApp() {
                     value={formData.steps}
                     onChange={(e) => setFormData({ ...formData, steps: e.target.value })}
                     placeholder="Enter each step on a new line..."
-                    rows={12}
+                    rows={8}
                     className="border-gray-200 focus:border-green-500 focus:ring-green-500/20 rounded-lg resize-none"
                   />
                   <p className="text-sm text-gray-500 mt-2">Enter each step on a separate line</p>
@@ -480,11 +553,64 @@ export default function TroubleshootingApp() {
                   />
                 </div>
 
+                {/* Image Upload Section */}
+                <div>
+                  <Label className="text-sm font-semibold text-gray-700 mb-2 block">Photos (Optional)</Label>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={(e) => handleImageUpload(e.target.files)}
+                        className="hidden"
+                        id="image-upload"
+                        disabled={uploadingImages}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById("image-upload")?.click()}
+                        disabled={uploadingImages}
+                        className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {uploadingImages ? "Uploading..." : "Upload Photos"}
+                      </Button>
+                      <p className="text-sm text-gray-500">Max 5MB per image. Supports JPG, PNG, GIF, WebP</p>
+                    </div>
+
+                    {/* Display uploaded images */}
+                    {formData.images.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {formData.images.map((imageUrl, index) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={imageUrl || "/placeholder.svg"}
+                              alt={`Upload ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                            />
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleRemoveImage(imageUrl)}
+                              className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="flex gap-4 pt-4">
                   <Button
                     onClick={handleSaveIssue}
                     className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl transition-all duration-200"
-                    disabled={saving}
+                    disabled={saving || uploadingImages}
                   >
                     <Save className="h-4 w-4" />
                     {saving ? "Saving..." : "Save Issue"}
@@ -492,7 +618,7 @@ export default function TroubleshootingApp() {
                   <Button
                     variant="outline"
                     onClick={cancelEdit}
-                    disabled={saving}
+                    disabled={saving || uploadingImages}
                     className="px-8 py-3 border-gray-300 hover:bg-gray-50 rounded-lg font-medium transition-colors bg-transparent"
                   >
                     Cancel
@@ -518,6 +644,28 @@ export default function TroubleshootingApp() {
                 </div>
                 <Separator className="bg-gradient-to-r from-green-200 to-transparent" />
               </div>
+
+              {/* Display images if available */}
+              {selectedIssue.images && selectedIssue.images.length > 0 && (
+                <div className="mb-10">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Reference Images
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {selectedIssue.images.map((imageUrl, index) => (
+                      <div key={index} className="group cursor-pointer">
+                        <img
+                          src={imageUrl || "/placeholder.svg"}
+                          alt={`Reference ${index + 1}`}
+                          className="w-full h-48 object-cover rounded-xl border border-gray-200 group-hover:border-green-300 transition-colors shadow-lg group-hover:shadow-xl"
+                          onClick={() => window.open(imageUrl, "_blank")}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mb-10">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
