@@ -11,6 +11,7 @@ export interface Issue {
   category: string
   steps: string[]
   additional_info?: string
+  images?: string[]
   created_at?: string
   updated_at?: string
 }
