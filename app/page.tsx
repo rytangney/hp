@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Settings, Plus, Edit, Trash2, Save, X, RefreshCw, Upload, ImageIcon } from "lucide-react"
+import { Search, Settings, Plus, Edit, Trash2, Save, X, RefreshCw, Upload, ImageIcon, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -61,7 +61,7 @@ export default function TroubleshootingApp() {
     category: "",
     steps: "",
     additionalInfo: "",
-    images: [] as string[],
+    media: [] as { url: string; type: "image" | "video" }[],
   })
 
   const categories = ["Print Quality", "Error Message", "Mechanical", "Material", "Software", "Other"]
@@ -93,7 +93,7 @@ export default function TroubleshootingApp() {
         category: item.category,
         steps: item.steps,
         additional_info: item.additional_info,
-        images: item.images || [],
+        media: item.media || [],
         created_at: item.created_at,
         updated_at: item.updated_at,
       }))
@@ -135,58 +135,65 @@ export default function TroubleshootingApp() {
     }
   }
 
-  const handleImageUpload = async (files: FileList | null) => {
+  const handleMediaUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return
 
     setUploadingImages(true)
-    const uploadedUrls: string[] = []
+    const uploadedMedia: { url: string; type: "image" | "video" }[] = []
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
 
         // Validate file type
-        if (!file.type.startsWith("image/")) {
-          alert(`File ${file.name} is not an image`)
+        const isImage = file.type.startsWith("image/")
+        const isVideo = file.type.startsWith("video/")
+
+        if (!isImage && !isVideo) {
+          alert(`File ${file.name} is not a supported media type`)
           continue
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          alert(`File ${file.name} is too large. Maximum size is 5MB`)
+        // Validate file size (max 50MB for videos, 5MB for images)
+        const maxSize = isVideo ? 50 * 1024 * 1024 : 5 * 1024 * 1024
+        if (file.size > maxSize) {
+          alert(`File ${file.name} is too large. Maximum size is ${isVideo ? "50MB for videos" : "5MB for images"}`)
           continue
         }
 
-        const imageUrl = await uploadImage(file)
-        if (imageUrl) {
-          uploadedUrls.push(imageUrl)
+        const mediaUrl = await uploadImage(file)
+        if (mediaUrl) {
+          uploadedMedia.push({
+            url: mediaUrl,
+            type: isVideo ? "video" : "image",
+          })
         }
       }
 
-      if (uploadedUrls.length > 0) {
+      if (uploadedMedia.length > 0) {
         setFormData((prev) => ({
           ...prev,
-          images: [...prev.images, ...uploadedUrls],
+          media: [...prev.media, ...uploadedMedia],
         }))
       }
     } catch (error) {
-      console.error("Error uploading images:", error)
-      alert("Error uploading images. Please try again.")
+      console.error("Error uploading media:", error)
+      alert("Error uploading media. Please try again.")
     } finally {
       setUploadingImages(false)
     }
   }
 
-  const handleRemoveImage = async (imageUrl: string) => {
+  const handleRemoveMedia = async (mediaUrl: string) => {
     try {
-      await deleteImage(imageUrl)
+      await deleteImage(mediaUrl)
       setFormData((prev) => ({
         ...prev,
-        images: prev.images.filter((url) => url !== imageUrl),
+        media: prev.media.filter((item) => item.url !== mediaUrl),
       }))
     } catch (error) {
-      console.error("Error removing image:", error)
-      alert("Error removing image. Please try again.")
+      console.error("Error removing media:", error)
+      alert("Error removing media. Please try again.")
     }
   }
 
@@ -209,7 +216,7 @@ export default function TroubleshootingApp() {
             category: formData.category,
             steps: stepsArray,
             additional_info: formData.additionalInfo || null,
-            images: formData.images,
+            media: formData.media,
             updated_at: new Date().toISOString(),
           })
           .eq("id", editingIssue.id)
@@ -228,7 +235,7 @@ export default function TroubleshootingApp() {
           category: formData.category,
           steps: stepsArray,
           additional_info: formData.additionalInfo || null,
-          images: formData.images,
+          media: formData.media,
         })
 
         if (error) {
@@ -242,7 +249,7 @@ export default function TroubleshootingApp() {
 
       // Reload issues to get the latest data
       await loadIssues()
-      setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
+      setFormData({ title: "", category: "", steps: "", additionalInfo: "", media: [] })
     } catch (error) {
       console.error("Error saving issue:", error)
       alert("Error saving issue. Please try again.")
@@ -258,7 +265,7 @@ export default function TroubleshootingApp() {
       category: issue.category,
       steps: issue.steps.join("\n"),
       additionalInfo: issue.additional_info || "",
-      images: issue.images || [],
+      media: issue.media || [],
     })
     setShowAddForm(false)
   }
@@ -273,9 +280,9 @@ export default function TroubleshootingApp() {
       const issueToDelete = issues.find((issue) => issue.id === issueId)
 
       // Delete associated images from storage
-      if (issueToDelete?.images) {
-        for (const imageUrl of issueToDelete.images) {
-          await deleteImage(imageUrl)
+      if (issueToDelete?.media) {
+        for (const mediaItem of issueToDelete.media) {
+          await deleteImage(mediaItem.url)
         }
       }
 
@@ -304,13 +311,13 @@ export default function TroubleshootingApp() {
   const handleAddNew = () => {
     setShowAddForm(true)
     setEditingIssue(null)
-    setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
+    setFormData({ title: "", category: "", steps: "", additionalInfo: "", media: [] })
   }
 
   const cancelEdit = () => {
     setEditingIssue(null)
     setShowAddForm(false)
-    setFormData({ title: "", category: "", steps: "", additionalInfo: "", images: [] })
+    setFormData({ title: "", category: "", steps: "", additionalInfo: "", media: [] })
   }
 
   if (loading) {
@@ -427,7 +434,14 @@ export default function TroubleshootingApp() {
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                       <h3 className="font-semibold text-gray-900 text-sm leading-tight">{issue.title}</h3>
-                      {issue.images && issue.images.length > 0 && <ImageIcon className="h-3 w-3 text-green-600" />}
+                      {issue.media && issue.media.length > 0 && (
+                        <div className="flex gap-1">
+                          {issue.media.some((m) => m.type === "image") && (
+                            <ImageIcon className="h-3 w-3 text-green-600" />
+                          )}
+                          {issue.media.some((m) => m.type === "video") && <Video className="h-3 w-3 text-blue-600" />}
+                        </div>
+                      )}
                     </div>
                     <Badge
                       variant="secondary"
@@ -553,48 +567,63 @@ export default function TroubleshootingApp() {
                   />
                 </div>
 
-                {/* Image Upload Section */}
+                {/* Media Upload Section */}
                 <div>
-                  <Label className="text-sm font-semibold text-gray-700 mb-2 block">Photos (Optional)</Label>
+                  <Label className="text-sm font-semibold text-gray-700 mb-2 block">Photos & Videos (Optional)</Label>
                   <div className="space-y-4">
                     <div className="flex items-center gap-4">
                       <Input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         multiple
-                        onChange={(e) => handleImageUpload(e.target.files)}
+                        onChange={(e) => handleMediaUpload(e.target.files)}
                         className="hidden"
-                        id="image-upload"
+                        id="media-upload"
                         disabled={uploadingImages}
                       />
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => document.getElementById("image-upload")?.click()}
+                        onClick={() => document.getElementById("media-upload")?.click()}
                         disabled={uploadingImages}
                         className="flex items-center gap-2 border-gray-300 hover:bg-gray-50"
                       >
                         <Upload className="h-4 w-4" />
-                        {uploadingImages ? "Uploading..." : "Upload Photos"}
+                        {uploadingImages ? "Uploading..." : "Upload Photos & Videos"}
                       </Button>
-                      <p className="text-sm text-gray-500">Max 5MB per image. Supports JPG, PNG, GIF, WebP</p>
+                      <p className="text-sm text-gray-500">
+                        Max 5MB for images, 50MB for videos. Supports JPG, PNG, MP4, MOV, WebM
+                      </p>
                     </div>
 
-                    {/* Display uploaded images */}
-                    {formData.images.length > 0 && (
+                    {/* Display uploaded media */}
+                    {formData.media.length > 0 && (
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {formData.images.map((imageUrl, index) => (
+                        {formData.media.map((mediaItem, index) => (
                           <div key={index} className="relative group">
-                            <img
-                              src={imageUrl || "/placeholder.svg"}
-                              alt={`Upload ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border border-gray-200"
-                            />
+                            {mediaItem.type === "image" ? (
+                              <img
+                                src={mediaItem.url || "/placeholder.svg"}
+                                alt={`Upload ${index + 1}`}
+                                className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                              />
+                            ) : (
+                              <div className="relative">
+                                <video
+                                  src={mediaItem.url}
+                                  className="w-full h-32 object-cover rounded-lg border border-gray-200"
+                                  muted
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-lg">
+                                  <Video className="h-8 w-8 text-white" />
+                                </div>
+                              </div>
+                            )}
                             <Button
                               type="button"
                               variant="destructive"
                               size="sm"
-                              onClick={() => handleRemoveImage(imageUrl)}
+                              onClick={() => handleRemoveMedia(mediaItem.url)}
                               className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <X className="h-3 w-3" />
@@ -645,22 +674,35 @@ export default function TroubleshootingApp() {
                 <Separator className="bg-gradient-to-r from-green-200 to-transparent" />
               </div>
 
-              {/* Display images if available */}
-              {selectedIssue.images && selectedIssue.images.length > 0 && (
+              {/* Display media if available */}
+              {selectedIssue.media && selectedIssue.media.length > 0 && (
                 <div className="mb-10">
                   <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    Reference Images
+                    Reference Media
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {selectedIssue.images.map((imageUrl, index) => (
-                      <div key={index} className="group cursor-pointer">
-                        <img
-                          src={imageUrl || "/placeholder.svg"}
-                          alt={`Reference ${index + 1}`}
-                          className="w-full h-48 object-cover rounded-xl border border-gray-200 group-hover:border-green-300 transition-colors shadow-lg group-hover:shadow-xl"
-                          onClick={() => window.open(imageUrl, "_blank")}
-                        />
+                    {selectedIssue.media.map((mediaItem, index) => (
+                      <div key={index} className="group">
+                        {mediaItem.type === "image" ? (
+                          <img
+                            src={mediaItem.url || "/placeholder.svg"}
+                            alt={`Reference ${index + 1}`}
+                            className="w-full h-48 object-cover rounded-xl border border-gray-200 group-hover:border-green-300 transition-colors shadow-lg group-hover:shadow-xl cursor-pointer"
+                            onClick={() => window.open(mediaItem.url, "_blank")}
+                          />
+                        ) : (
+                          <div className="relative">
+                            <video
+                              src={mediaItem.url}
+                              controls
+                              className="w-full h-48 object-cover rounded-xl border border-gray-200 group-hover:border-green-300 transition-colors shadow-lg group-hover:shadow-xl"
+                              preload="metadata"
+                            >
+                              Your browser does not support the video tag.
+                            </video>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
