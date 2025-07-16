@@ -11,7 +11,7 @@ export interface Issue {
   category: string
   steps: string[]
   additional_info?: string
-  images?: string[]
+  media?: { url: string; type: "image" | "video" }[]
   created_at?: string
   updated_at?: string
 }
