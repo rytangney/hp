@@ -338,6 +338,17 @@ export default function TroubleshootingApp() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-gray-50">
       {/* Header */}
       <header className="bg-gradient-to-r from-gray-500 via-gray-600 to-gray-500 shadow-2xl border-b-4 border-green-500 relative overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
+          style={{
+            backgroundImage: "url('/images/header-background.jpg')",
+          }}
+        ></div>
+
+        {/* Dark overlay for better text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/30 to-black/40"></div>
+
         {/* Textured background overlay */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent"></div>
@@ -352,6 +363,7 @@ export default function TroubleshootingApp() {
         </div>
 
         <div className="flex items-center justify-between px-8 py-6 relative z-10">
+          {/* Rest of header content remains the same */}
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4">
               <img src="/images/gopak-logo.png" alt="GOPAK Logo" className="h-12 w-auto drop-shadow-lg" />
